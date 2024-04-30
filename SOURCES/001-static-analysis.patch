@@ -1,0 +1,298 @@
+From 58cd1c05e001a4fe250c15f3599e79974bc509e3 Mon Sep 17 00:00:00 2001
+From: Zoltan Fridrich <zfridric@redhat.com>
+Date: Thu, 16 Nov 2023 10:12:14 +0100
+Subject: [PATCH] Fix issues found by static analysis
+
+Signed-off-by: Zoltan Fridrich <zfridric@redhat.com>
+---
+ common/frob-getprogname.c  |  4 ++--
+ common/test.c              |  4 +---
+ p11-kit/generate-keypair.c | 25 +++++++++----------------
+ p11-kit/import-object.c    | 22 +++++-----------------
+ p11-kit/lists.c            |  1 +
+ p11-kit/print-config.c     |  4 +++-
+ p11-kit/rpc-client.c       |  6 ++++--
+ p11-kit/test-uri.c         |  4 ++--
+ trust/test-trust.c         |  2 +-
+ 9 files changed, 28 insertions(+), 44 deletions(-)
+
+diff --git a/common/frob-getprogname.c b/common/frob-getprogname.c
+index ead658cc8..46e3b7fd3 100644
+--- a/common/frob-getprogname.c
++++ b/common/frob-getprogname.c
+@@ -76,14 +76,14 @@ main (int argc,
+ 			execv (BUILDDIR "/common/frob-getprogname" EXEEXT, args);
+ 		} else {
+ 			int status;
+-			char buffer[1024];
++			char buffer[1024] = { 0 };
+ 			size_t offset = 0;
+ 			ssize_t nread;
+ 			char *p;
+ 
+ 			close (pfds[1]);
+ 			while (1) {
+-				nread = read (pfds[0], buffer + offset, sizeof(buffer) - offset);
++				nread = read (pfds[0], buffer + offset, sizeof(buffer) - offset - 1);
+ 				if (nread < 0) {
+ 					perror ("read");
+ 					exit (EXIT_FAILURE);
+diff --git a/common/test.c b/common/test.c
+index 3ed98da01..6cdbd1fa2 100644
+--- a/common/test.c
++++ b/common/test.c
+@@ -272,7 +272,6 @@ p11_testx (void (* function) (void *),
+ 	test_item item = { TEST, };
+ 	va_list va;
+ 
+-	item.type = TEST;
+ 	item.x.test.func = function;
+ 	item.x.test.argument = argument;
+ 
+@@ -287,9 +286,8 @@ void
+ p11_fixture (void (* setup) (void *),
+              void (* teardown) (void *))
+ {
+-	test_item item;
++	test_item item = { FIXTURE, };
+ 
+-	item.type = FIXTURE;
+ 	item.x.fix.setup = setup;
+ 	item.x.fix.teardown = teardown;
+ 
+diff --git a/p11-kit/generate-keypair.c b/p11-kit/generate-keypair.c
+index 49dc11830..695103d1d 100644
+--- a/p11-kit/generate-keypair.c
++++ b/p11-kit/generate-keypair.c
+@@ -351,7 +351,7 @@ int
+ p11_kit_generate_keypair (int argc,
+ 			  char *argv[])
+ {
+-	int opt, ret = 2;
++	int opt, ret;
+ 	char *label = NULL;
+ 	CK_ULONG bits = 0;
+ 	const uint8_t *ec_params = NULL;
+@@ -396,31 +396,27 @@ p11_kit_generate_keypair (int argc,
+ 	while ((opt = p11_tool_getopt (argc, argv, options)) != -1) {
+ 		switch (opt) {
+ 		case opt_label:
+-			label = strdup (optarg);
+-			if (label == NULL) {
+-				p11_message (_("failed to allocate memory"));
+-				goto cleanup;
+-			}
++			label = optarg;
+ 			break;
+ 		case opt_type:
+ 			mechanism = get_mechanism (optarg);
+ 			if (mechanism.mechanism == CKA_INVALID) {
+ 				p11_message (_("unknown mechanism type: %s"), optarg);
+-				goto cleanup;
++				return 2;
+ 			}
+ 			break;
+ 		case opt_bits:
+ 			bits = strtol (optarg, NULL, 10);
+ 			if (bits == 0) {
+ 				p11_message (_("failed to parse bits value: %s"), optarg);
+-				goto cleanup;
++				return 2;
+ 			}
+ 			break;
+ 		case opt_curve:
+ 			ec_params = get_ec_params (optarg, &ec_params_len);
+ 			if (ec_params == NULL) {
+ 				p11_message (_("unknown curve name: %s"), optarg);
+-				goto cleanup;
++				return 2;
+ 			}
+ 			break;
+ 		case opt_login:
+@@ -434,10 +430,9 @@ p11_kit_generate_keypair (int argc,
+ 			break;
+ 		case opt_help:
+ 			p11_tool_usage (usages, options);
+-			ret = 0;
+-			goto cleanup;
++			return 0;
+ 		case '?':
+-			goto cleanup;
++			return 2;
+ 		default:
+ 			assert_not_reached ();
+ 			break;
+@@ -449,11 +444,11 @@ p11_kit_generate_keypair (int argc,
+ 
+ 	if (argc != 1) {
+ 		p11_tool_usage (usages, options);
+-		goto cleanup;
++		return 2;
+ 	}
+ 
+ 	if (!check_args (mechanism.mechanism, bits, ec_params))
+-		goto cleanup;
++		return 2;
+ 
+ #ifdef OS_UNIX
+ 	/* Register a fallback PIN callback that reads from terminal.
+@@ -464,11 +459,9 @@ p11_kit_generate_keypair (int argc,
+ 
+ 	ret = generate_keypair (*argv, label, mechanism, bits, ec_params, ec_params_len, login);
+ 
+-cleanup:
+ #ifdef OS_UNIX
+ 	p11_kit_pin_unregister_callback ("tty", p11_pin_tty_callback, NULL);
+ #endif
+-	free (label);
+ 
+ 	return ret;
+ }
+diff --git a/p11-kit/import-object.c b/p11-kit/import-object.c
+index 270a0e027..feee07659 100644
+--- a/p11-kit/import-object.c
++++ b/p11-kit/import-object.c
+@@ -500,7 +500,7 @@ int
+ p11_kit_import_object (int argc,
+ 		       char *argv[])
+ {
+-	int opt, ret = 2;
++	int opt, ret;
+ 	char *label = NULL;
+ 	char *file = NULL;
+ 	bool login = false;
+@@ -536,18 +536,10 @@ p11_kit_import_object (int argc,
+ 	while ((opt = p11_tool_getopt (argc, argv, options)) != -1) {
+ 		switch (opt) {
+ 		case opt_label:
+-			label = strdup (optarg);
+-			if (label == NULL) {
+-				p11_message (_("failed to allocate memory"));
+-				goto cleanup;
+-			}
++			label = optarg;
+ 			break;
+ 		case opt_file:
+-			file = strdup (optarg);
+-			if (file == NULL) {
+-				p11_message (_("failed to allocate memory"));
+-				goto cleanup;
+-			}
++			file = optarg;
+ 			break;
+ 		case opt_login:
+ 			login = true;
+@@ -574,12 +566,12 @@ p11_kit_import_object (int argc,
+ 
+ 	if (argc != 1) {
+ 		p11_tool_usage (usages, options);
+-		goto cleanup;
++		return 2;
+ 	}
+ 
+ 	if (file == NULL) {
+ 		p11_message (_("no file specified"));
+-		goto cleanup;
++		return 2;
+ 	}
+ 
+ #ifdef OS_UNIX
+@@ -595,10 +587,6 @@ p11_kit_import_object (int argc,
+ 	p11_kit_pin_unregister_callback ("tty", p11_pin_tty_callback, NULL);
+ #endif
+ 
+-cleanup:
+-	free (label);
+-	free (file);
+-
+ 	return ret;
+ }
+ 
+diff --git a/p11-kit/lists.c b/p11-kit/lists.c
+index df58beb3f..007bb0f12 100644
+--- a/p11-kit/lists.c
++++ b/p11-kit/lists.c
+@@ -295,6 +295,7 @@ print_modules (void)
+ 		if (rv != CKR_OK) {
+ 			p11_message (_("couldn't load module info: %s"),
+ 				     p11_kit_strerror (rv));
++			p11_kit_modules_finalize_and_release (module_list);
+ 			return 1;
+ 		}
+ 
+diff --git a/p11-kit/print-config.c b/p11-kit/print-config.c
+index 173b55feb..29daf3871 100644
+--- a/p11-kit/print-config.c
++++ b/p11-kit/print-config.c
+@@ -74,8 +74,10 @@ print_config (void)
+ 					       P11_PACKAGE_CONFIG_MODULES,
+ 					       P11_SYSTEM_CONFIG_MODULES,
+ 					       P11_USER_CONFIG_MODULES);
+-	if (modules_conf == NULL)
++	if (modules_conf == NULL) {
++		p11_dict_free (global_conf);
+ 		return 1;
++	}
+ 
+ 	printf ("[global]\n");
+ 	p11_dict_iterate (global_conf, &i);
+diff --git a/p11-kit/rpc-client.c b/p11-kit/rpc-client.c
+index fb39103eb..19b628b1a 100644
+--- a/p11-kit/rpc-client.c
++++ b/p11-kit/rpc-client.c
+@@ -173,6 +173,8 @@ call_done (rpc_client *module,
+            p11_rpc_message *msg,
+            CK_RV ret)
+ {
++	p11_buffer *buf;
++
+ 	assert (module != NULL);
+ 	assert (msg != NULL);
+ 
+@@ -189,9 +191,9 @@ call_done (rpc_client *module,
+ 
+ 	/* We used the same buffer for input/output, so this frees both */
+ 	assert (msg->input == msg->output);
+-	p11_rpc_buffer_free (msg->input);
+-
++	buf = msg->input;
+ 	p11_rpc_message_clear (msg);
++	p11_rpc_buffer_free (buf);
+ 
+ 	return ret;
+ }
+diff --git a/p11-kit/test-uri.c b/p11-kit/test-uri.c
+index 32e8da703..18b7a108a 100644
+--- a/p11-kit/test-uri.c
++++ b/p11-kit/test-uri.c
+@@ -1019,7 +1019,7 @@ test_uri_get_set_unrecognized (void)
+ static void
+ test_uri_match_token (void)
+ {
+-	CK_TOKEN_INFO token;
++	CK_TOKEN_INFO token = { 0 };
+ 	P11KitUri *uri;
+ 	int ret;
+ 
+@@ -1056,7 +1056,7 @@ test_uri_match_token (void)
+ static void
+ test_uri_match_module (void)
+ {
+-	CK_INFO info;
++	CK_INFO info = { 0 };
+ 	P11KitUri *uri;
+ 	int ret;
+ 
+diff --git a/trust/test-trust.c b/trust/test-trust.c
+index 29b2797b5..3b27a1f31 100644
+--- a/trust/test-trust.c
++++ b/trust/test-trust.c
+@@ -258,7 +258,7 @@ test_check_symlink_msg (const char *file,
+ 	if (asprintf (&filename, "%s/%s", directory, name) < 0)
+ 		assert_not_reached ();
+ 
+-	if (readlink (filename, buf, sizeof (buf)) < 0)
++	if (readlink (filename, buf, sizeof (buf) - 1) < 0)
+ 		p11_test_fail (file, line, function, "Couldn't read symlink: %s", filename);
+ 
+ 	if (strcmp (destination, buf) != 0)

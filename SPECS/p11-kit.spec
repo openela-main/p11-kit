@@ -1,16 +1,18 @@
 # This spec file has been automatically updated
-Version:	0.24.1
-Release: 2%{?dist}
+Version:        0.25.3
+Release:        2%{?dist}
 Name:           p11-kit
 Summary:        Library for loading and sharing PKCS#11 modules
 
-License:        BSD
+License:        BSD-3-Clause
 URL:            http://p11-glue.freedesktop.org/p11-kit.html
 Source0:        https://github.com/p11-glue/p11-kit/releases/download/%{version}/p11-kit-%{version}.tar.xz
 Source1:        https://github.com/p11-glue/p11-kit/releases/download/%{version}/p11-kit-%{version}.tar.xz.sig
-Source2:        gpgkey-462225C3B46F34879FC8496CD605848ED7E69871.gpg
+Source2:        https://p11-glue.github.io/p11-glue/p11-kit/p11-kit-release-keyring.gpg
 Source3:        trust-extract-compat
 Source4:        p11-kit-client.service
+
+Patch0:         001-static-analysis.patch
 
 BuildRequires:  gcc
 BuildRequires:  libtasn1-devel >= 2.3
@@ -23,6 +25,7 @@ BuildRequires:  bash-completion
 # Work around for https://bugzilla.redhat.com/show_bug.cgi?id=1497147
 # Remove this once it is fixed
 BuildRequires:  pkgconfig(glib-2.0)
+BuildRequires:  pkgconfig(systemd)
 BuildRequires:  gnupg2
 BuildRequires:  /usr/bin/xsltproc
 
@@ -44,8 +47,8 @@ developing applications that use %{name}.
 %package trust
 Summary:            System trust module from %{name}
 Requires:           %{name}%{?_isa} = %{version}-%{release}
-Requires(post):     %{_sbindir}/update-alternatives
-Requires(postun):   %{_sbindir}/update-alternatives
+Requires(post):     %{_sbindir}/alternatives
+Requires(postun):   %{_sbindir}/alternatives
 Conflicts:          nss < 3.14.3-9
 
 %description trust
@@ -99,13 +102,12 @@ install -p -m 644 %{SOURCE4} $RPM_BUILD_ROOT%{_userunitdir}
 
 
 %post trust
-%{_sbindir}/update-alternatives --install %{_libdir}/libnssckbi.so \
-        %{alt_ckbi} %{_libdir}/pkcs11/p11-kit-trust.so 30
+%{_sbindir}/alternatives --install %{_libdir}/libnssckbi.so %{alt_ckbi} %{_libdir}/pkcs11/p11-kit-trust.so 30
 
 %postun trust
 if [ $1 -eq 0 ] ; then
         # package removal
-        %{_sbindir}/update-alternatives --remove %{alt_ckbi} %{_libdir}/pkcs11/p11-kit-trust.so
+        %{_sbindir}/alternatives --remove %{alt_ckbi} %{_libdir}/pkcs11/p11-kit-trust.so
 fi
 
 
@@ -152,6 +154,20 @@ fi
 
 
 %changelog
+* Thu Nov 23 2023 Zoltan Fridrich <zfridric@redhat.com> - 0.25.3-2
+- Fix issues found by static analysis
+  Related: RHEL-14834
+
+* Wed Nov 15 2023 Zoltan Fridrich <zfridric@redhat.com> - 0.25.3-1
+- Update to new upstream release 0.25.3
+  Resolves: RHEL-14834
+
+* Wed Nov 8 2023 Zoltan Fridrich <zfridric@redhat.com> - 0.25.2-1
+- Update to new upstream release 0.25.2
+  Resolves: RHEL-14834
+- Add IBM specific mechanisms and attributes
+  Resolves: RHEL-10570
+
 * Tue Feb  1 2022 Daiki Ueno <dueno@redhat.com> - 0.24.1-2
 - Replace "black list" with "blocklist" in -trust subpackage description (#2026457)
 
