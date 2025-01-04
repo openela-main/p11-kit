@@ -1,6 +1,6 @@
 # This spec file has been automatically updated
 Version:        0.25.3
-Release:        2%{?dist}
+Release:        3%{?dist}
 Name:           p11-kit
 Summary:        Library for loading and sharing PKCS#11 modules
 
@@ -12,7 +12,8 @@ Source2:        https://p11-glue.github.io/p11-glue/p11-kit/p11-kit-release-keyr
 Source3:        trust-extract-compat
 Source4:        p11-kit-client.service
 
-Patch0:         001-static-analysis.patch
+Patch:          001-static-analysis.patch
+Patch:          p11-kit-0.25.5-trust-file-length.patch
 
 BuildRequires:  gcc
 BuildRequires:  libtasn1-devel >= 2.3
@@ -154,6 +155,10 @@ fi
 
 
 %changelog
+* Fri Oct 25 2024 Zoltan Fridrich <zfridric@redhat.com> - 0.25.3-3
+- Fix regression in trust where file creation fails for long cert labels
+  Resolves: RHEL-64917
+
 * Thu Nov 23 2023 Zoltan Fridrich <zfridric@redhat.com> - 0.25.3-2
 - Fix issues found by static analysis
   Related: RHEL-14834
