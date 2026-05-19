@@ -1,0 +1,224 @@
+diff --color -ruNp a/common/attrs.c b/common/attrs.c
+--- a/common/attrs.c	2025-12-11 14:59:36.000000000 +0100
++++ b/common/attrs.c	2026-01-22 09:47:40.761892180 +0100
+@@ -638,13 +638,15 @@ attribute_is_trust_value (const CK_ATTRI
+ 	case CKA_NSS_TRUST_IPSEC_TUNNEL:
+ 	case CKA_NSS_TRUST_IPSEC_USER:
+ 	case CKA_NSS_TRUST_TIME_STAMPING:
++	case CKA_TRUST_IPSEC_IKE:
++	case CKA_TRUST_OCSP_SIGNING:
++#ifdef USE_STANDARD_TRUST
+ 	case CKA_TRUST_SERVER_AUTH:
+ 	case CKA_TRUST_CLIENT_AUTH:
+ 	case CKA_TRUST_CODE_SIGNING:
+ 	case CKA_TRUST_EMAIL_PROTECTION:
+-	case CKA_TRUST_IPSEC_IKE:
+ 	case CKA_TRUST_TIME_STAMPING:
+-	case CKA_TRUST_OCSP_SIGNING:
++#endif
+ 		break;
+ 	default:
+ 		return false;
+@@ -734,12 +736,14 @@ attribute_is_sensitive (const CK_ATTRIBU
+ 	X (CKA_DEFAULT_CMS_ATTRIBUTES)
+ 	X (CKA_SUPPORTED_CMS_ATTRIBUTES)
+ 	X (CKA_ALLOWED_MECHANISMS)
++#ifdef USE_STANDARD_TRUST
+ 	X (CKA_TRUST_SERVER_AUTH)
+ 	X (CKA_TRUST_CLIENT_AUTH)
+ 	X (CKA_TRUST_CODE_SIGNING)
+ 	X (CKA_TRUST_EMAIL_PROTECTION)
+-	X (CKA_TRUST_IPSEC_IKE)
+ 	X (CKA_TRUST_TIME_STAMPING)
++#endif
++	X (CKA_TRUST_IPSEC_IKE)
+ 	X (CKA_TRUST_OCSP_SIGNING)
+ 	X (CKA_X_ASSERTION_TYPE)
+ 	X (CKA_X_CERTIFICATE_VALUE)
+diff --color -ruNp a/common/constants.c b/common/constants.c
+--- a/common/constants.c	2025-12-11 14:59:36.000000000 +0100
++++ b/common/constants.c	2026-01-22 09:48:12.843493106 +0100
+@@ -198,12 +198,16 @@ const p11_constant p11_constant_types[]
+ 	CT (CKA_VALIDATION_PROFILE, "validation-profile")
+ 	CT (CKA_ENCAPSULATE_TEMPLATE, "encapsulate-template")
+ 	CT (CKA_DECAPSULATE_TEMPLATE, "decapsulate_template")
++#ifdef USE_STANDARD_TRUST
+ 	CT (CKA_TRUST_SERVER_AUTH, "trust-server-auth")
+ 	CT (CKA_TRUST_CLIENT_AUTH, "trust-client-auth")
+ 	CT (CKA_TRUST_CODE_SIGNING, "trust-code-signing")
+ 	CT (CKA_TRUST_EMAIL_PROTECTION, "trust-email-protection")
++#endif
+ 	CT (CKA_TRUST_IPSEC_IKE, "trust-ipsec-ike")
++#ifdef USE_STANDARD_TRUST
+ 	CT (CKA_TRUST_TIME_STAMPING, "trust-time-stamping")
++#endif
+ 	CT (CKA_TRUST_OCSP_SIGNING, "trust-ocsp-signing")
+ 	CT (CKA_ENCAPSULATE, "encapsulate")
+ 	CT (CKA_DECAPSULATE, "decapsulate")
+@@ -267,14 +271,25 @@ const p11_constant p11_constant_types[]
+ 	CT (CKA_NSS_TRUST_KEY_AGREEMENT, "nss-trust-key-agreement")
+ 	CT (CKA_NSS_TRUST_KEY_CERT_SIGN, "nss-trust-key-cert-sign")
+ 	CT (CKA_NSS_TRUST_CRL_SIGN, "nss-trust-crl-sign")
++#ifdef USE_STANDARD_TRUST
+ 	CT (CKA_NSS_TRUST_SERVER_AUTH, "nss-trust-server-auth")
+ 	CT (CKA_NSS_TRUST_CLIENT_AUTH, "nss-trust-client-auth")
+ 	CT (CKA_NSS_TRUST_CODE_SIGNING, "nss-trust-code-signing")
+ 	CT (CKA_NSS_TRUST_EMAIL_PROTECTION, "nss-trust-email-protection")
++#else
++	CT (CKA_NSS_TRUST_SERVER_AUTH, "trust-server-auth")
++	CT (CKA_NSS_TRUST_CLIENT_AUTH, "trust-client-auth")
++	CT (CKA_NSS_TRUST_CODE_SIGNING, "trust-code-signing")
++	CT (CKA_NSS_TRUST_EMAIL_PROTECTION, "trust-email-protection")
++#endif
+ 	CT (CKA_NSS_TRUST_IPSEC_END_SYSTEM, "nss-trust-ipsec-end-system")
+ 	CT (CKA_NSS_TRUST_IPSEC_TUNNEL, "nss-trust-ipsec-tunnel")
+ 	CT (CKA_NSS_TRUST_IPSEC_USER, "nss-trust-ipsec-user")
++#ifdef USE_STANDARD_TRUST
+ 	CT (CKA_NSS_TRUST_TIME_STAMPING, "nss-trust-time-stamping")
++#else
++	CT (CKA_NSS_TRUST_TIME_STAMPING, "trust-time-stamping")
++#endif
+ 	CT (CKA_NSS_TRUST_STEP_UP_APPROVED, "nss-trust-step-up-approved")
+ 	CT (CKA_NSS_CERT_SHA1_HASH, "nss-cert-sha1-hash")
+ 	CT (CKA_NSS_CERT_MD5_HASH, "nss-cert-md5-hash")
+diff --color -ruNp a/common/persist.c b/common/persist.c
+--- a/common/persist.c	2025-12-11 14:59:36.000000000 +0100
++++ b/common/persist.c	2026-01-22 09:48:34.018889748 +0100
+@@ -296,11 +296,13 @@ format_ulong (CK_ATTRIBUTE *attr,
+ 	case CKA_NSS_TRUST_IPSEC_USER:
+ 	case CKA_NSS_TRUST_TIME_STAMPING:
+ 	case CKA_NSS_TRUST_STEP_UP_APPROVED:
++#ifdef USE_STANDARD_TRUST
+ 	case CKA_TRUST_SERVER_AUTH:
+ 	case CKA_TRUST_CLIENT_AUTH:
+ 	case CKA_TRUST_CODE_SIGNING:
+ 	case CKA_TRUST_EMAIL_PROTECTION:
+ 	case CKA_TRUST_TIME_STAMPING:
++#endif
+ 	case CKA_X_ASSERTION_TYPE:
+ 	case CKA_AUTH_PIN_FLAGS:
+ 	case CKA_HW_FEATURE_TYPE:
+@@ -368,11 +370,13 @@ format_constant (CK_ATTRIBUTE *attr,
+ 	case CKA_NSS_TRUST_IPSEC_TUNNEL:
+ 	case CKA_NSS_TRUST_IPSEC_USER:
+ 	case CKA_NSS_TRUST_TIME_STAMPING:
++#ifdef USE_STANDARD_TRUST
+ 	case CKA_TRUST_SERVER_AUTH:
+ 	case CKA_TRUST_CLIENT_AUTH:
+ 	case CKA_TRUST_CODE_SIGNING:
+ 	case CKA_TRUST_EMAIL_PROTECTION:
+ 	case CKA_TRUST_TIME_STAMPING:
++#endif
+ 		table = p11_constant_trusts;
+ 		break;
+ 	case CKA_CLASS:
+diff --color -ruNp a/common/pkcs11.h b/common/pkcs11.h
+--- a/common/pkcs11.h	2025-12-11 14:59:36.000000000 +0100
++++ b/common/pkcs11.h	2026-01-22 09:46:29.803959838 +0100
+@@ -578,12 +578,7 @@ extern "C" {
+ #define CKA_VALIDATION_PROFILE                  (0x629UL)
+ #define CKA_ENCAPSULATE_TEMPLATE                (0x62AUL)
+ #define CKA_DECAPSULATE_TEMPLATE                (0x62BUL)
+-#define CKA_TRUST_SERVER_AUTH                   (0x62CUL)
+-#define CKA_TRUST_CLIENT_AUTH                   (0x62DUL)
+-#define CKA_TRUST_CODE_SIGNING                  (0x62EUL)
+-#define CKA_TRUST_EMAIL_PROTECTION              (0x62FUL)
+ #define CKA_TRUST_IPSEC_IKE                     (0x630UL)
+-#define CKA_TRUST_TIME_STAMPING                 (0x631UL)
+ #define CKA_TRUST_OCSP_SIGNING                  (0x632UL)
+ #define CKA_ENCAPSULATE                         (0x633UL)
+ #define CKA_DECAPSULATE                         (0x634UL)
+@@ -592,6 +587,22 @@ extern "C" {
+ #define CKA_SEED                                (0x637UL)
+ #define CKA_VENDOR_DEFINED                      ((unsigned long) (1UL << 31))
+ 
++#ifdef USE_STANDARD_TRUST
++/* Values introduced in PKCS#11 3.2 standard */
++#define CKA_TRUST_SERVER_AUTH                   (0x62CUL)
++#define CKA_TRUST_CLIENT_AUTH                   (0x62DUL)
++#define CKA_TRUST_CODE_SIGNING                  (0x62EUL)
++#define CKA_TRUST_EMAIL_PROTECTION              (0x62FUL)
++#define CKA_TRUST_TIME_STAMPING                 (0x631UL)
++#elif !defined(PKCS11_X_H_)
++/* Legacy values that collide with PKCS#11 standard values */
++#define CKA_TRUST_SERVER_AUTH                   (0xce536358UL)
++#define CKA_TRUST_CLIENT_AUTH                   (0xce536359UL)
++#define CKA_TRUST_CODE_SIGNING                  (0xce53635aUL)
++#define CKA_TRUST_EMAIL_PROTECTION              (0xce53635bUL)
++#define CKA_TRUST_TIME_STAMPING                 (0xce53635fUL)
++#endif
++
+ /* CK_CERTIFICATE_CATEGORY */
+ #define CK_CERTIFICATE_CATEGORY_UNSPECIFIED     (0UL)
+ #define CK_CERTIFICATE_CATEGORY_TOKEN_USER      (1UL)
+diff --color -ruNp a/common/pkcs11x.h b/common/pkcs11x.h
+--- a/common/pkcs11x.h	2025-12-11 14:59:36.000000000 +0100
++++ b/common/pkcs11x.h	2026-01-22 09:46:39.783921400 +0100
+@@ -98,6 +98,32 @@ extern "C" {
+ #define CKA_NSS_CERT_SHA1_HASH          0xce5363b4UL
+ #define CKA_NSS_CERT_MD5_HASH           0xce5363b5UL
+ 
++#ifndef USE_STANDARD_TRUST
++/* Legacy names */
++#define CKA_TRUST_DIGITAL_SIGNATURE     CKA_NSS_TRUST_DIGITAL_SIGNATURE
++#define CKA_TRUST_NON_REPUDIATION       CKA_NSS_TRUST_NON_REPUDIATION
++#define CKA_TRUST_KEY_ENCIPHERMENT      CKA_NSS_TRUST_KEY_ENCIPHERMENT
++#define CKA_TRUST_DATA_ENCIPHERMENT     CKA_NSS_TRUST_DATA_ENCIPHERMENT
++#define CKA_TRUST_KEY_AGREEMENT         CKA_NSS_TRUST_KEY_AGREEMENT
++#define CKA_TRUST_KEY_CERT_SIGN         CKA_NSS_TRUST_KEY_CERT_SIGN
++#define CKA_TRUST_CRL_SIGN              CKA_NSS_TRUST_CRL_SIGN
++#define CKA_TRUST_IPSEC_END_SYSTEM      CKA_NSS_TRUST_IPSEC_END_SYSTEM
++#define CKA_TRUST_IPSEC_TUNNEL          CKA_NSS_TRUST_IPSEC_TUNNEL
++#define CKA_TRUST_IPSEC_USER            CKA_NSS_TRUST_IPSEC_USER
++#define CKA_TRUST_STEP_UP_APPROVED      CKA_NSS_TRUST_STEP_UP_APPROVED
++#define CKA_CERT_SHA1_HASH              CKA_NSS_CERT_SHA1_HASH
++#define CKA_CERT_MD5_HASH               CKA_NSS_CERT_MD5_HASH
++
++#ifndef PKCS11_H
++/* Legacy names that collide with PKCS#11 standard names */
++#define CKA_TRUST_SERVER_AUTH           CKA_NSS_TRUST_SERVER_AUTH
++#define CKA_TRUST_CLIENT_AUTH           CKA_NSS_TRUST_CLIENT_AUTH
++#define CKA_TRUST_CODE_SIGNING          CKA_NSS_TRUST_CODE_SIGNING
++#define CKA_TRUST_EMAIL_PROTECTION      CKA_NSS_TRUST_EMAIL_PROTECTION
++#define CKA_TRUST_TIME_STAMPING         CKA_NSS_TRUST_TIME_STAMPING
++#endif
++#endif /* USE_STANDARD_TRUST */
++
+ /* NSS trust values */
+ typedef CK_ULONG                        CK_TRUST;
+ #define CKT_NSS_TRUSTED                 0xce534351UL
+diff --color -ruNp a/trust/builder.c b/trust/builder.c
+--- a/trust/builder.c	2026-01-19 12:05:20.000000000 +0100
++++ b/trust/builder.c	2026-01-22 09:51:26.366291745 +0100
+@@ -993,12 +993,15 @@ const static builder_schema trust_schema
+ 	  { CKA_SUBJECT, CREATE },
+ 	  { CKA_SERIAL_NUMBER, CREATE },
+ 	  /* official trust attributes */
++#ifdef USE_STANDARD_TRUST
+ 	  { CKA_TRUST_SERVER_AUTH, CREATE },
+ 	  { CKA_TRUST_CLIENT_AUTH, CREATE },
+ 	  { CKA_TRUST_CODE_SIGNING, CREATE },
+ 	  { CKA_TRUST_EMAIL_PROTECTION, CREATE },
+-	  { CKA_TRUST_IPSEC_IKE, CREATE },
+ 	  { CKA_TRUST_TIME_STAMPING, CREATE },
++#endif
++	  /* these do not collide with legacy NSS names */
++	  { CKA_TRUST_IPSEC_IKE, CREATE },
+ 	  { CKA_TRUST_OCSP_SIGNING, CREATE },
+ 	  /* vendor trust attributes previuosly used by NSS */
+ 	  { CKA_NSS_TRUST_SERVER_AUTH, CREATE },
+@@ -1363,12 +1366,14 @@ build_trust_object_eku (CK_ATTRIBUTE *ob
+ 		CK_ATTRIBUTE_TYPE type;
+ 		const char *oid;
+ 	} eku_attribute_map[] = {
++#ifdef USE_STANDARD_TRUST
+ 		/* official trust attributes */
+ 		{ CKA_TRUST_SERVER_AUTH, P11_OID_SERVER_AUTH_STR },
+ 		{ CKA_TRUST_CLIENT_AUTH, P11_OID_CLIENT_AUTH_STR },
+ 		{ CKA_TRUST_CODE_SIGNING, P11_OID_CODE_SIGNING_STR },
+ 		{ CKA_TRUST_EMAIL_PROTECTION, P11_OID_EMAIL_PROTECTION_STR },
+ 		{ CKA_TRUST_TIME_STAMPING, P11_OID_TIME_STAMPING_STR },
++#endif
+ 		/* vendor trust attributes previuosly used by NSS */
+ 		{ CKA_NSS_TRUST_SERVER_AUTH, P11_OID_SERVER_AUTH_STR },
+ 		{ CKA_NSS_TRUST_CLIENT_AUTH, P11_OID_CLIENT_AUTH_STR },
