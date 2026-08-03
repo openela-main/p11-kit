@@ -1,5 +1,5 @@
 # This spec file has been automatically updated
-Version:        0.26.2
+Version:        0.26.4
 Release:        1%{?dist}
 Name:           p11-kit
 Summary:        Library for loading and sharing PKCS#11 modules
